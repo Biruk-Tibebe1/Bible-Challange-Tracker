@@ -1,0 +1,36 @@
+@import "tailwindcss";
+
+:root {
+  --paper: #f7f7f1;
+  --ink: #242a24;
+  --muted: #6b756d;
+  --line: #e4e7de;
+  --forest: #315b49;
+  --forest-deep: #244837;
+  --sage: #e8eee6;
+  --sunlight: #e8c982;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html {
+  scroll-behavior: smooth;
+}
+
+body {
+  margin: 0;
+  background: var(--paper);
+  color: var(--ink);
+  font-family: Georgia, "Times New Roman", serif;
+}
+
+button,
+a {
+  -webkit-tap-highlight-color: transparent;
+}
+
+::selection {
+  background: #dce6d9;
+}
