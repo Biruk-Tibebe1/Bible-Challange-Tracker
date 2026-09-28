@@ -68,6 +68,10 @@ export function ChallengeExperience() {
   const { replaceProgress } = progressState;
 
   useEffect(() => {
+    if (window.location.hash === "#custom-challenge-tab") setView("custom");
+  }, []);
+
+  useEffect(() => {
     if (isAuthLoading) return;
     if (!isAuthenticated || !isConfigured) {
       setSavedChallenges([]);
@@ -243,7 +247,7 @@ export function ChallengeExperience() {
 
     return (
       <ChallengeScheduleView
-        title={challenge.name}
+        title={challenge.challengeType === "predefined" ? "The Full Bible" : challenge.name}
         challenge={challenge.schedule}
         selectedDay={selectedDay}
         onSelectedDayChange={setSelectedDay}
@@ -360,7 +364,7 @@ export function ChallengeExperience() {
                 return (
                   <li key={saved.id} className="flex flex-col justify-between gap-3 rounded-md border border-[var(--line)] bg-white/55 p-4">
                     <div>
-                      <h3 className="font-medium text-[var(--ink)]">{saved.name}</h3>
+                      <h3 className="font-medium text-[var(--ink)]">{saved.challengeType === "predefined" ? "The Full Bible" : saved.name}</h3>
                       <p className="mt-1 text-xs capitalize text-[var(--muted)]">{saved.challengeType} · {saved.totalDays} days</p>
                       <p className="mt-1 text-xs text-[var(--muted)]">{startBook} {saved.startLocation.chapterNumber} – {endBook} {saved.endLocation.chapterNumber}</p>
                       <p className="mt-2 text-sm text-[var(--muted)]">{saved.completedDays} / {saved.totalDays} days · {percentage.toFixed(1)}%</p>

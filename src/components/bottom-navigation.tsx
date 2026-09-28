@@ -1,42 +1,44 @@
+"use client";
+
 import Link from "next/link";
+import { usePathname } from "next/navigation";
 
 const destinations = [
-  { label: "Home", icon: "⌂", href: "/" },
-  { label: "Challenge", icon: "▤", href: "/challenge" },
-  { label: "Bible", icon: "▥" },
-  { label: "Profile", icon: "○" },
+  { label: "Home", href: "/" },
+  { label: "Bible", href: "/bible" },
+  { label: "Challenges", href: "/challenges" },
+  { label: "Groups", href: "/groups" },
+  { label: "Profile", href: "/profile" },
 ] as const;
 
-export function BottomNavigation({ activeItem = "Home" }: { activeItem?: "Home" | "Challenge" }) {
+export function BottomNavigation() {
+  const pathname = usePathname();
+
   return (
     <nav
       aria-label="Main navigation"
-      className="fixed inset-x-0 bottom-0 z-10 border-t border-[var(--line)] bg-[var(--paper)]/95 px-3 pb-[max(env(safe-area-inset-bottom),0.75rem)] pt-2 backdrop-blur sm:left-1/2 sm:w-[min(100%-4rem,34rem)] sm:-translate-x-1/2 sm:rounded-t-xl sm:border-x"
+      className="fixed inset-x-0 bottom-0 z-20 border-t border-[var(--line)] bg-[var(--paper)]/95 px-2 pb-[max(env(safe-area-inset-bottom),0.5rem)] pt-1 backdrop-blur lg:inset-y-0 lg:right-auto lg:w-60 lg:border-r lg:border-t-0 lg:px-5 lg:py-8"
     >
-      <ul className="mx-auto grid max-w-lg grid-cols-4">
-        {destinations.map((destination) => (
-          <li key={destination.label}>
-            {"href" in destination ? (
+      <div className="hidden lg:block">
+        <Link className="font-serif text-xl text-[var(--forest-deep)]" href="/">Word & Way</Link>
+        <p className="mt-1 text-xs text-[var(--muted)]">Bible reading, at your pace</p>
+      </div>
+      <ul className="mx-auto grid max-w-lg grid-cols-5 lg:mt-12 lg:max-w-none lg:grid-cols-1 lg:gap-1">
+        {destinations.map((destination) => {
+          const isActive = pathname === destination.href ||
+            (destination.href === "/challenges" && pathname === "/challenge");
+          return (
+            <li key={destination.label}>
               <Link
-                aria-current={destination.label === activeItem ? "page" : undefined}
-                className={`flex min-h-14 flex-col items-center justify-center gap-0.5 text-[11px] font-medium ${destination.label === activeItem ? "text-[var(--forest)]" : "text-[var(--muted)]"}`}
+                aria-current={isActive ? "page" : undefined}
+                className={`flex min-h-12 items-center justify-center rounded-md px-1 text-[10px] font-medium sm:text-xs lg:justify-start lg:px-3 lg:text-sm ${isActive ? "bg-[var(--sage)] text-[var(--forest-deep)]" : "text-[var(--muted)] hover:bg-white/70 hover:text-[var(--ink)]"}`}
                 href={destination.href}
               >
-                <span aria-hidden="true" className="text-xl leading-none">{destination.icon}</span>
                 {destination.label}
               </Link>
-            ) : (
-              <span
-                aria-disabled="true"
-                className="flex min-h-14 flex-col items-center justify-center gap-0.5 text-[11px] text-[var(--muted)]/70"
-                title="Not available yet"
-              >
-                <span aria-hidden="true" className="text-xl leading-none">{destination.icon}</span>
-                {destination.label}
-              </span>
-            )}
-          </li>
-        ))}
+            </li>
+          );
+        })}
       </ul>
     </nav>
   );

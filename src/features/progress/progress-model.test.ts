@@ -3,9 +3,11 @@ import test from "node:test";
 import { FULL_BIBLE_CHALLENGE } from "../challenges/predefined-challenge.ts";
 import {
   calculateCompletionPercentage,
+  calculateCurrentStreak,
   countCompletedDays,
   createProgressFromCompletedDays,
   createInitialProgress,
+  hasCompletedOnDate,
   isDayComplete,
   markDayComplete,
   toggleDayCompletion,
@@ -87,4 +89,28 @@ test("persisted completed day numbers hydrate into the same progress model", () 
   assert.equal(isDayComplete(progress, 2), true);
   assert.equal(isDayComplete(progress, 3), false);
   assert.equal(isDayComplete(progress, 5), true);
+});
+
+test("current streak counts consecutive local completion dates through today", () => {
+  const now = new Date(2026, 8, 28, 12);
+  const completedAt = [
+    new Date(2026, 8, 28, 8).toISOString(),
+    new Date(2026, 8, 27, 20).toISOString(),
+    new Date(2026, 8, 26, 9).toISOString(),
+    new Date(2026, 8, 24, 9).toISOString(),
+  ];
+
+  assert.equal(calculateCurrentStreak(completedAt, now), 3);
+});
+
+test("current streak allows yesterday but expires after a missed day", () => {
+  const now = new Date(2026, 8, 28, 12);
+  assert.equal(calculateCurrentStreak([new Date(2026, 8, 27, 8).toISOString()], now), 1);
+  assert.equal(calculateCurrentStreak([new Date(2026, 8, 26, 8).toISOString()], now), 0);
+});
+
+test("daily completion status matches the user's local calendar date", () => {
+  const today = new Date(2026, 8, 28, 12);
+  assert.equal(hasCompletedOnDate([new Date(2026, 8, 28, 7).toISOString()], today), true);
+  assert.equal(hasCompletedOnDate([new Date(2026, 8, 27, 23).toISOString()], today), false);
 });

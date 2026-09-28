@@ -79,6 +79,40 @@ export function calculateCompletionPercentage(progress: ChallengeProgress): numb
   return (countCompletedDays(progress) / countTotalDays(progress)) * 100;
 }
 
+function localDateKey(date: Date): string {
+  const year = date.getFullYear();
+  const month = String(date.getMonth() + 1).padStart(2, "0");
+  const day = String(date.getDate()).padStart(2, "0");
+  return `${year}-${month}-${day}`;
+}
+
+export function hasCompletedOnDate(completedAt: readonly string[], day = new Date()): boolean {
+  const target = localDateKey(day);
+  return completedAt.some((value) => {
+    const date = new Date(value);
+    return !Number.isNaN(date.getTime()) && localDateKey(date) === target;
+  });
+}
+
+export function calculateCurrentStreak(completedAt: readonly string[], now = new Date()): number {
+  const completedDates = new Set<string>();
+  for (const value of completedAt) {
+    const date = new Date(value);
+    if (!Number.isNaN(date.getTime())) completedDates.add(localDateKey(date));
+  }
+
+  const current = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+  if (!completedDates.has(localDateKey(current))) current.setDate(current.getDate() - 1);
+  if (!completedDates.has(localDateKey(current))) return 0;
+
+  let streak = 0;
+  while (completedDates.has(localDateKey(current))) {
+    streak += 1;
+    current.setDate(current.getDate() - 1);
+  }
+  return streak;
+}
+
 export function createProgressFromCompletedDays(
   challengeId: string,
   totalDayCount: number,

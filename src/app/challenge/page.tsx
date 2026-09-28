@@ -8,7 +8,7 @@ export const metadata: Metadata = {
 
 export default function ChallengePage() {
   return (
-    <AppShell activeItem="Challenge">
+    <AppShell>
       <ChallengeExperience />
     </AppShell>
   );

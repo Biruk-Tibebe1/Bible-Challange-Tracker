@@ -156,6 +156,17 @@ export async function listMyChallenges(): Promise<SavedChallengeSummary[]> {
   return challengeRows.map((challenge) => mapChallengeRow(challenge, counts.get(challenge.id) ?? 0));
 }
 
+export async function loadMyCompletedAtDates(): Promise<string[]> {
+  const client = getClient();
+  const { data, error } = await client
+    .from("user_challenge_progress")
+    .select("completed_at")
+    .eq("completed", true);
+
+  if (error) throw new ChallengePersistenceError("Unable to load your reading activity.");
+  return data.flatMap((record) => record.completed_at ? [record.completed_at] : []);
+}
+
 function parseEthiopianDate(row: ChallengeDayRow): EthiopianDate | undefined {
   if (row.ethiopian_year === null && row.ethiopian_month === null && row.ethiopian_day === null) {
     return undefined;

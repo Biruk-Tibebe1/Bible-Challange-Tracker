@@ -1,6 +1,7 @@
 "use client";
 
 import type { GeneratedChallenge, EthiopianDate } from "../challenge-types";
+import Link from "next/link";
 import {
   calculateCompletionPercentage,
   countCompletedDays,
@@ -141,7 +142,9 @@ export function ChallengeScheduleView({
                   className="flex min-h-12 items-center gap-3 rounded-md border border-[var(--line)] bg-[var(--paper)] px-4 py-2 text-[var(--ink)]"
                 >
                   <span aria-hidden="true" className="size-1.5 shrink-0 rounded-full bg-[var(--sunlight)]" />
-                  <span>{chapter.bookName} {chapter.chapterNumber}</span>
+                  <Link className="min-h-10 rounded-sm underline decoration-[var(--line)] underline-offset-4 hover:text-[var(--forest)]" href={`/bible?book=${encodeURIComponent(chapter.bookId)}&chapter=${chapter.chapterNumber}`}>
+                    {chapter.bookName} {chapter.chapterNumber}
+                  </Link>
                 </li>
               ))}
             </ol>
