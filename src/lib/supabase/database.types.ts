@@ -152,6 +152,86 @@ export interface Database {
           >,
         ]
       >;
+      groups: Table<
+        {
+          id: string;
+          name: string;
+          description: string | null;
+          owner_id: string;
+          invite_code: string;
+          invite_expires_at: string | null;
+          created_at: string;
+          updated_at: string;
+        },
+        {
+          id?: string;
+          name: string;
+          description?: string | null;
+          owner_id?: string;
+          invite_code?: string;
+          invite_expires_at?: string | null;
+          created_at?: string;
+          updated_at?: string;
+        },
+        {
+          id?: string;
+          name?: string;
+          description?: string | null;
+          owner_id?: string;
+          invite_code?: string;
+          invite_expires_at?: string | null;
+          created_at?: string;
+          updated_at?: string;
+        }
+      >;
+      group_members: Table<
+        {
+          id: string;
+          group_id: string;
+          user_id: string;
+          role: "owner" | "member";
+          joined_at: string;
+        },
+        {
+          id?: string;
+          group_id: string;
+          user_id: string;
+          role: "owner" | "member";
+          joined_at?: string;
+        },
+        {
+          id?: string;
+          group_id?: string;
+          user_id?: string;
+          role?: "owner" | "member";
+          joined_at?: string;
+        },
+        [Relationship<"group_members_group_id_fkey", ["group_id"], "groups", ["id"]>]
+      >;
+      group_challenges: Table<
+        {
+          id: string;
+          group_id: string;
+          challenge_id: string;
+          created_at: string;
+        },
+        {
+          id?: string;
+          group_id: string;
+          challenge_id: string;
+          created_at?: string;
+        },
+        {
+          id?: string;
+          group_id?: string;
+          challenge_id?: string;
+          created_at?: string;
+        },
+        [
+          Relationship<"group_challenges_group_id_fkey", ["group_id"], "groups", ["id"]>,
+          Relationship<"group_challenges_challenge_id_fkey", ["challenge_id"], "challenges", ["id"]>,
+        ]
+      >;
     };
     Views: Record<string, never>;
     Functions: {
@@ -168,6 +248,22 @@ export interface Database {
           p_challenge_key?: string | null;
         };
         Returns: string;
+      };
+      join_group_by_invite_code: {
+        Args: { p_invite_code: string };
+        Returns: { group_id: string; already_member: boolean }[];
+      };
+      list_group_members: {
+        Args: { p_group_id: string };
+        Returns: { user_id: string; display_name: string; email: string | null; role: string; joined_at: string }[];
+      };
+      is_group_member: {
+        Args: { p_group_id: string };
+        Returns: boolean;
+      };
+      is_group_owner: {
+        Args: { p_group_id: string };
+        Returns: boolean;
       };
     };
     Enums: Record<string, never>;

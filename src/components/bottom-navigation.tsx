@@ -26,7 +26,9 @@ export function BottomNavigation() {
       <ul className="mx-auto grid max-w-lg grid-cols-5 lg:mt-12 lg:max-w-none lg:grid-cols-1 lg:gap-1">
         {destinations.map((destination) => {
           const isActive = pathname === destination.href ||
-            (destination.href === "/challenges" && pathname === "/challenge");
+            (destination.href === "/" && pathname === "/today") ||
+            (destination.href === "/challenges" && pathname === "/challenge") ||
+            (destination.href === "/groups" && pathname.startsWith("/groups/"));
           return (
             <li key={destination.label}>
               <Link

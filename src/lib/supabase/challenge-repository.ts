@@ -26,6 +26,15 @@ export interface LoadedSavedChallenge extends SavedChallengeSummary {
   endDate?: EthiopianDate;
 }
 
+export interface CompletedChallengeDayRecord {
+  dayNumber: number;
+  completedAt: string | null;
+}
+
+export interface SavedChallengeDetail extends LoadedSavedChallenge {
+  completedDayRecords: CompletedChallengeDayRecord[];
+}
+
 export class ChallengePersistenceError extends Error {
   constructor(message: string) {
     super(message);
@@ -156,6 +165,50 @@ export async function listMyChallenges(): Promise<SavedChallengeSummary[]> {
   return challengeRows.map((challenge) => mapChallengeRow(challenge, counts.get(challenge.id) ?? 0));
 }
 
+export async function listMyChallengeDetails(): Promise<SavedChallengeDetail[]> {
+  const client = getClient();
+  const { data: challengeRows, error: challengeError } = await client
+    .from("challenges")
+    .select("id,owner_id,name,challenge_type,start_book_id,start_chapter,end_book_id,end_chapter,total_days,challenge_key,created_at,updated_at")
+    .order("created_at", { ascending: false });
+  if (challengeError) throw new ChallengePersistenceError("Unable to load your saved challenges.");
+  if (!challengeRows.length) return [];
+
+  const challengeIds = challengeRows.map((challenge) => challenge.id);
+  const [{ data: dayRows, error: daysError }, { data: progressRows, error: progressError }] = await Promise.all([
+    client.from("challenge_days")
+      .select("id,challenge_id,day_number,chapters,ethiopian_year,ethiopian_month,ethiopian_day,created_at")
+      .in("challenge_id", challengeIds)
+      .order("day_number"),
+    client.from("user_challenge_progress")
+      .select("challenge_id,day_number,completed_at")
+      .in("challenge_id", challengeIds)
+      .eq("completed", true),
+  ]);
+  if (daysError) throw new ChallengePersistenceError("Unable to load your saved challenge schedules.");
+  if (progressError) throw new ChallengePersistenceError("Unable to load your saved reading progress.");
+
+  const daysByChallenge = new Map<string, ChallengeDayRow[]>();
+  for (const day of dayRows) {
+    const entries = daysByChallenge.get(day.challenge_id) ?? [];
+    entries.push(day);
+    daysByChallenge.set(day.challenge_id, entries);
+  }
+  const progressByChallenge = new Map<string, CompletedChallengeDayRecord[]>();
+  for (const record of progressRows) {
+    const entries = progressByChallenge.get(record.challenge_id) ?? [];
+    entries.push({ dayNumber: record.day_number, completedAt: record.completed_at });
+    progressByChallenge.set(record.challenge_id, entries);
+  }
+
+  return challengeRows.map((challenge) => {
+    const completedDayRecords = progressByChallenge.get(challenge.id) ?? [];
+    const summary = mapChallengeRow(challenge, completedDayRecords.length);
+    const reconstructed = reconstructSchedule(challenge, daysByChallenge.get(challenge.id) ?? []);
+    return { ...summary, ...reconstructed, completedDayRecords };
+  });
+}
+
 export async function loadMyCompletedAtDates(): Promise<string[]> {
   const client = getClient();
   const { data, error } = await client
@@ -282,28 +335,34 @@ export async function loadSavedChallenge(challengeId: string): Promise<LoadedSav
 }
 
 export async function loadCompletedDayNumbers(challengeId: string): Promise<number[]> {
+  const records = await loadCompletedDayRecords(challengeId);
+  return records.map((record) => record.dayNumber);
+}
+
+export async function loadCompletedDayRecords(challengeId: string): Promise<CompletedChallengeDayRecord[]> {
   const client = getClient();
   const { data, error } = await client
     .from("user_challenge_progress")
-    .select("day_number")
+    .select("day_number,completed_at")
     .eq("challenge_id", challengeId)
     .eq("completed", true);
 
   if (error) throw new ChallengePersistenceError("Unable to load your reading progress.");
-  return data.map((record) => record.day_number);
+  return data.map((record) => ({ dayNumber: record.day_number, completedAt: record.completed_at }));
 }
 
 export async function saveDayCompletion(
   challengeId: string,
   dayNumber: number,
   completed: boolean,
+  completedAt = new Date().toISOString(),
 ): Promise<void> {
   const client = getClient();
   const { error } = await client.from("user_challenge_progress").upsert({
     challenge_id: challengeId,
     day_number: dayNumber,
     completed,
-    completed_at: completed ? new Date().toISOString() : null,
+    completed_at: completed ? completedAt : null,
   }, { onConflict: "user_id,challenge_id,day_number", defaultToNull: false });
 
   if (error) throw new ChallengePersistenceError("Unable to save your reading progress. Please try again.");

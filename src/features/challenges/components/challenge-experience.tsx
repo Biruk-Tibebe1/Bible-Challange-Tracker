@@ -13,12 +13,14 @@ import { getBibleBookById } from "../../bible-books/bible-data.ts";
 import {
   ensurePredefinedChallenge,
   listMyChallenges,
-  loadCompletedDayNumbers,
+  loadCompletedDayRecords,
   loadSavedChallenge,
   saveCustomChallenge,
   saveDayCompletion,
 } from "@/lib/supabase/challenge-repository";
 import type { LoadedSavedChallenge, SavedChallengeSummary } from "@/lib/supabase/challenge-repository";
+import type { CompletedChallengeDayRecord } from "@/lib/supabase/challenge-repository";
+import { selectTodayChallenge } from "../today-model";
 
 type ChallengeView = "full-bible" | "custom";
 
@@ -50,6 +52,7 @@ export function ChallengeExperience() {
   const [selectedChallenge, setSelectedChallenge] = useState<ActiveChallenge>(PREDEFINED_CHALLENGE);
   const [predefinedCloudId, setPredefinedCloudId] = useState<string | null>(null);
   const [savedChallenges, setSavedChallenges] = useState<SavedChallengeSummary[]>([]);
+  const [completedRecordsByChallenge, setCompletedRecordsByChallenge] = useState<Record<string, CompletedChallengeDayRecord[]>>({});
   const [isLoadingChallenges, setIsLoadingChallenges] = useState(false);
   const [isOpeningChallenge, setIsOpeningChallenge] = useState(false);
   const [cloudStatus, setCloudStatus] = useState<{
@@ -75,6 +78,7 @@ export function ChallengeExperience() {
     if (isAuthLoading) return;
     if (!isAuthenticated || !isConfigured) {
       setSavedChallenges([]);
+      setCompletedRecordsByChallenge({});
       setIsLoadingChallenges(false);
       return;
     }
@@ -136,12 +140,13 @@ export function ChallengeExperience() {
 
     let cancelled = false;
     setCloudStatus({ challengeId: selectedChallenge.id, loading: true, savingDay: null, error: "", notice: "" });
-    void loadCompletedDayNumbers(selectedChallenge.id).then((completedDays) => {
+    void loadCompletedDayRecords(selectedChallenge.id).then((completedRecords) => {
       if (cancelled) return;
+      setCompletedRecordsByChallenge((currentRecords) => ({ ...currentRecords, [selectedChallenge.id]: completedRecords }));
       replaceProgress(createProgressFromCompletedDays(
         selectedChallenge.id,
         selectedChallenge.schedule.totalDays,
-        completedDays,
+        completedRecords.map((record) => record.dayNumber),
       ));
       setCloudStatus({ challengeId: selectedChallenge.id, loading: false, savingDay: null, error: "", notice: "" });
     }).catch(() => {
@@ -191,10 +196,21 @@ export function ChallengeExperience() {
     }
 
     const willBeComplete = !isDayComplete(currentProgress, dayNumber);
+    const completedAt = new Date().toISOString();
     setCloudStatus({ ...currentCloudStatus, savingDay: dayNumber, error: "", notice: "" });
     try {
-      await saveDayCompletion(selectedChallenge.id, dayNumber, willBeComplete);
+      await saveDayCompletion(selectedChallenge.id, dayNumber, willBeComplete, completedAt);
       progressState.toggleDayCompletion(selectedChallenge.id, selectedChallenge.schedule.totalDays, dayNumber);
+      setCompletedRecordsByChallenge((currentRecords) => {
+        const existing = currentRecords[selectedChallenge.id] ?? [];
+        const withoutDay = existing.filter((record) => record.dayNumber !== dayNumber);
+        return {
+          ...currentRecords,
+          [selectedChallenge.id]: willBeComplete
+            ? [...withoutDay, { dayNumber, completedAt }]
+            : withoutDay,
+        };
+      });
       setSavedChallenges((current) => current.map((challenge) => challenge.id === selectedChallenge.id
         ? {
           ...challenge,
@@ -244,6 +260,19 @@ export function ChallengeExperience() {
     challenge: ActiveChallenge,
   ) {
     const progress = progressState.getProgress(challenge.id, challenge.schedule.totalDays);
+    const recordsByDay = new Map((completedRecordsByChallenge[challenge.id] ?? []).map((record) => [record.dayNumber, record.completedAt]));
+    const completedDayRecords = progress.days
+      .filter((day) => day.status === "complete")
+      .map((day) => ({ dayNumber: day.dayNumber, completedAt: recordsByDay.get(day.dayNumber) ?? null }));
+    const todayStats = selectTodayChallenge({
+      id: challenge.id,
+      name: challenge.name,
+      challengeType: challenge.challengeType,
+      schedule: challenge.schedule,
+      completedDayRecords,
+      startDate: challenge.startDate,
+      endDate: challenge.endDate,
+    });
 
     return (
       <ChallengeScheduleView
@@ -254,6 +283,7 @@ export function ChallengeExperience() {
         startDate={challenge.startDate}
         endDate={challenge.endDate}
         progress={progress}
+        todayStats={todayStats}
         onToggleDayCompletion={handleDayCompletionToggle}
         isProgressLoading={currentCloudStatus.loading}
         isSavingDay={currentCloudStatus.savingDay === selectedDay}
@@ -283,6 +313,7 @@ export function ChallengeExperience() {
         persisted: true,
       };
       setSelectedChallenge(challenge);
+      setCompletedRecordsByChallenge((currentRecords) => ({ ...currentRecords, [challengeId]: [] }));
       progressState.replaceProgress(createProgressFromCompletedDays(challengeId, schedule.totalDays, []));
       setSelectedDay(1);
       try {

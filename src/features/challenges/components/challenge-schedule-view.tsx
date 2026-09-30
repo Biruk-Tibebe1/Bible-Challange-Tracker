@@ -8,6 +8,7 @@ import {
   isDayComplete,
 } from "../../progress/progress-model";
 import type { ChallengeProgress } from "../../progress/progress-model";
+import type { TodayChallengeSelection } from "../today-model";
 
 interface ChallengeScheduleViewProps {
   title: string;
@@ -17,6 +18,7 @@ interface ChallengeScheduleViewProps {
   startDate?: EthiopianDate;
   endDate?: EthiopianDate;
   progress: ChallengeProgress;
+  todayStats: TodayChallengeSelection;
   onToggleDayCompletion: (dayNumber: number) => void | Promise<void>;
   isProgressLoading?: boolean;
   isSavingDay?: boolean;
@@ -37,6 +39,7 @@ export function ChallengeScheduleView({
   startDate,
   endDate,
   progress,
+  todayStats,
   onToggleDayCompletion,
   isProgressLoading = false,
   isSavingDay = false,
@@ -63,7 +66,7 @@ export function ChallengeScheduleView({
       <dl className="mt-5 grid grid-cols-2 gap-x-5 gap-y-4 sm:grid-cols-4">
         <div>
           <dt className="text-xs uppercase tracking-wide text-[var(--muted)]">Start</dt>
-          <dd className="mt-1 text-sm text-[var(--ink)]">{startDate ? formatEthiopianDate(startDate) : "Day 1"}</dd>
+          <dd className="mt-1 text-sm text-[var(--ink)]">{startDate ? formatEthiopianDate(startDate) : "Not configured"}</dd>
         </div>
         <div>
           <dt className="text-xs uppercase tracking-wide text-[var(--muted)]">End</dt>
@@ -75,7 +78,7 @@ export function ChallengeScheduleView({
         </div>
         <div>
           <dt className="text-xs uppercase tracking-wide text-[var(--muted)]">Reading</dt>
-          <dd className="mt-1 text-sm text-[var(--ink)]">{challenge.totalChapterCount} chapters</dd>
+          <dd className="mt-1 text-sm text-[var(--ink)]">{todayStats.completedChapterCount} / {todayStats.totalChapterCount} complete</dd>
         </div>
       </dl>
 
@@ -102,7 +105,25 @@ export function ChallengeScheduleView({
         >
           <div className="h-full rounded-full bg-[var(--forest)] transition-[width]" style={{ width: `${completionPercentage}%` }} />
         </div>
+        <div className="mt-4 grid grid-cols-2 gap-3 sm:grid-cols-4">
+          <div><p className="text-xs text-[var(--muted)]">Remaining days</p><p className="mt-1 text-sm font-medium text-[var(--ink)]">{Math.max(0, challenge.totalDays - completedDayCount)}</p></div>
+          <div><p className="text-xs text-[var(--muted)]">Remaining chapters</p><p className="mt-1 text-sm font-medium text-[var(--ink)]">{todayStats.remainingChapterCount}</p></div>
+          <div><p className="text-xs text-[var(--muted)]">Current streak</p><p className="mt-1 text-sm font-medium text-[var(--ink)]">{todayStats.currentStreak} days</p></div>
+          <div><p className="text-xs text-[var(--muted)]">Longest streak</p><p className="mt-1 text-sm font-medium text-[var(--ink)]">{todayStats.longestStreak} days</p></div>
+        </div>
       </section>
+
+      {todayStats.isComplete && (
+        <section aria-label="Challenge completion" className="mt-5 rounded-md bg-[var(--sage)] p-4">
+          <h3 className="font-medium text-[var(--forest-deep)]">Challenge completed</h3>
+          <p className="mt-1 text-sm text-[var(--muted)]">
+            {todayStats.completedAt
+              ? `Completed ${new Intl.DateTimeFormat(undefined, { dateStyle: "medium" }).format(new Date(todayStats.completedAt))}.`
+              : "All scheduled days are complete."}
+            {" "}This challenge remains in your history.
+          </p>
+        </section>
+      )}
 
       <div className="mt-8 rounded-lg border border-[var(--line)] bg-white/55 p-4 sm:p-6">
         <div className="flex flex-wrap items-end justify-between gap-4">
@@ -123,7 +144,7 @@ export function ChallengeScheduleView({
             >
               {challenge.days.map((availableDay) => (
                 <option key={availableDay.dayNumber} value={availableDay.dayNumber}>
-                  Day {availableDay.dayNumber}
+                  Day {availableDay.dayNumber} · {todayStats.completedDayNumbers.includes(availableDay.dayNumber) ? "Complete" : "Incomplete"}
                 </option>
               ))}
             </select>
@@ -187,6 +208,22 @@ export function ChallengeScheduleView({
             Next day
           </button>
         </div>
+
+        {todayStats.incompleteDayNumbers.length > 0 && (
+          <details className="mt-5 border-t border-[var(--line)] pt-4">
+            <summary className="cursor-pointer text-sm font-medium text-[var(--forest-deep)]">
+              Incomplete scheduled days ({todayStats.incompleteDayNumbers.length})
+            </summary>
+            <p className="mt-2 text-xs leading-5 text-[var(--muted)]">Choose any earlier day to recover it. Scheduled readings stay on their original days.</p>
+            <div className="mt-3 grid max-h-44 grid-cols-5 gap-2 overflow-y-auto pr-1 sm:grid-cols-8">
+              {todayStats.incompleteDayNumbers.map((dayNumber) => (
+                <button aria-label={`Open incomplete Day ${dayNumber}`} className="min-h-9 rounded border border-[var(--line)] bg-white px-2 text-xs text-[var(--ink)] hover:bg-[var(--sage)]" key={dayNumber} type="button" onClick={() => onSelectedDayChange(dayNumber)}>
+                  Day {dayNumber}
+                </button>
+              ))}
+            </div>
+          </details>
+        )}
       </div>
     </section>
   );

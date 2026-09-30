@@ -2,8 +2,8 @@
 
 import Link from "next/link";
 import { useAuth } from "@/features/authentication/auth-provider";
-import { calculateCurrentStreak, hasCompletedOnDate } from "@/features/progress/progress-model";
 import { useSavedChallenges } from "@/features/challenges/use-saved-challenges";
+import { TodayExperience } from "./today-experience";
 
 function getGreetingName(email: string | undefined, metadata: Record<string, unknown> | undefined): string {
   const preferredName = metadata?.full_name ?? metadata?.name;
@@ -28,11 +28,9 @@ function ChallengeProgress({ name, completedDays, totalDays }: { name: string; c
 
 export function HomeDashboard() {
   const { user, isLoading: isAuthLoading } = useAuth();
-  const { challenges, completedAt, error, isLoading } = useSavedChallenges();
+  const { challenges, error, isLoading } = useSavedChallenges();
   const activeChallenges = challenges.filter((challenge) => challenge.completedDays < challenge.totalDays);
   const completedChallenges = challenges.filter((challenge) => challenge.completedDays >= challenge.totalDays);
-  const completedToday = hasCompletedOnDate(completedAt);
-  const streak = calculateCurrentStreak(completedAt);
   const userMetadata = user?.user_metadata as Record<string, unknown> | undefined;
 
   return (
@@ -50,36 +48,7 @@ export function HomeDashboard() {
         )}
       </header>
 
-      <section aria-labelledby="today-title" className="mt-7 grid gap-5 rounded-lg border border-[var(--line)] bg-white/70 p-5 sm:p-7 md:grid-cols-[1fr_auto] md:items-center">
-        <div>
-          <p className="text-xs font-semibold uppercase tracking-[0.14em] text-[var(--forest)]">Today</p>
-          <h2 id="today-title" className="mt-2 font-serif text-2xl text-[var(--ink)]">Today&apos;s reading</h2>
-          <p className="mt-2 text-sm leading-6 text-[var(--muted)]">
-            {user && !isLoading
-              ? completedToday ? "A reading was recorded today. Continue whenever you're ready." : "Choose a passage to begin. Your daily reading is yours to set." 
-              : "Choose a passage from the Bible and begin at your own pace."}
-          </p>
-          <p className="mt-3 text-sm font-medium text-[var(--forest-deep)]" role="status">
-            {user && !isLoading ? completedToday ? "Reading recorded today" : "Not yet recorded today" : "Daily completion will appear here when available"}
-          </p>
-        </div>
-        <Link className="inline-flex min-h-12 items-center justify-center rounded-md bg-[var(--forest)] px-6 text-sm font-semibold text-white hover:bg-[var(--forest-deep)]" href="/bible">Read now</Link>
-      </section>
-
-      <section aria-label="Reading statistics" className="mt-5 grid grid-cols-2 gap-3 sm:grid-cols-3">
-        <div className="rounded-md border border-[var(--line)] bg-white/50 p-4">
-          <p className="text-xs text-[var(--muted)]">Active challenges</p>
-          <p className="mt-2 text-2xl font-semibold text-[var(--ink)]">{user && !isLoading ? activeChallenges.length : "—"}</p>
-        </div>
-        <div className="rounded-md border border-[var(--line)] bg-white/50 p-4">
-          <p className="text-xs text-[var(--muted)]">Completed challenges</p>
-          <p className="mt-2 text-2xl font-semibold text-[var(--ink)]">{user && !isLoading ? completedChallenges.length : "—"}</p>
-        </div>
-        <div className="col-span-2 rounded-md border border-[var(--line)] bg-white/50 p-4 sm:col-span-1">
-          <p className="text-xs text-[var(--muted)]">Current streak</p>
-          <p className="mt-2 text-2xl font-semibold text-[var(--ink)]">{user && !isLoading ? `${streak} ${streak === 1 ? "day" : "days"}` : "—"}</p>
-        </div>
-      </section>
+      <div className="mt-7"><TodayExperience mode="home" /></div>
 
       {error && <p className="mt-5 rounded-md border border-[#e4c8c1] bg-[#fff7f4] p-3 text-sm text-[#8c3f32]" role="alert">{error}</p>}
 

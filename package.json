@@ -7,7 +7,7 @@
     "build": "next build",
     "start": "next start",
     "lint": "eslint .",
-    "test": "node --experimental-strip-types --test src/features/challenges/challenge-generator.test.ts src/features/progress/progress-model.test.ts src/features/bible-books/bible-text-provider.test.ts src/features/bible-books/reader-storage.test.ts src/lib/supabase/supabase-foundation.test.ts"
+    "test": "node --experimental-strip-types --test src/features/challenges/challenge-generator.test.ts src/features/challenges/today-model.test.ts src/features/progress/progress-model.test.ts src/features/bible-books/bible-text-provider.test.ts src/features/bible-books/reader-storage.test.ts src/features/dashboard/group-model.test.ts src/lib/supabase/supabase-foundation.test.ts"
   },
   "dependencies": {
     "@supabase/ssr": "^0.12.7",

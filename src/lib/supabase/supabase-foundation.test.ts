@@ -11,6 +11,10 @@ const persistenceMigration = readFileSync(
   "supabase/migrations/20260926010000_atomic_challenge_persistence.sql",
   "utf8",
 );
+const groupMigration = readFileSync(
+  "supabase/migrations/20260930000000_group_collaboration.sql",
+  "utf8",
+);
 
 test("Supabase public client configuration comes from environment variables", () => {
   const originalUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
@@ -63,4 +67,27 @@ test("persistence migration derives ownership from auth and saves schedules atom
   assert.match(persistenceMigration, /insert into public\.challenge_days/i);
   assert.match(persistenceMigration, /grant execute on function public\.create_challenge_with_days[\s\S]+to authenticated/i);
   assert.doesNotMatch(persistenceMigration, /security definer/i);
+});
+
+test("group migration restricts private data and membership to authenticated group members", () => {
+  for (const tableName of ["groups", "group_members", "group_challenges"]) {
+    assert.match(groupMigration, new RegExp(`create table public\\.${tableName}\\s*\\(`, "i"));
+    assert.match(groupMigration, new RegExp(`alter table public\\.${tableName} enable row level security`, "i"));
+  }
+
+  assert.match(groupMigration, /create unique index group_members_one_owner_per_group_idx[\s\S]+where role = 'owner'/i);
+  assert.match(groupMigration, /create or replace function public\.set_group_owner_from_auth[\s\S]+new\.owner_id := \(select auth\.uid\(\)\)/i);
+  assert.match(groupMigration, /new\.invite_code := pg_catalog\.upper\([\s\S]+gen_random_uuid\(\)/i);
+  assert.match(groupMigration, /invite_expires_at timestamptz/i);
+  assert.match(groupMigration, /create or replace function public\.join_group_by_invite_code[\s\S]+v_user_id uuid := \(select auth\.uid\(\)\)/i);
+  assert.match(groupMigration, /values \(v_group_id, v_user_id, 'member'\)[\s\S]+on conflict \(group_id, user_id\) do nothing/i);
+  assert.match(groupMigration, /if v_invite_expires_at is not null and v_invite_expires_at <= pg_catalog\.now\(\)[\s\S]+using errcode = 'P0003'/i);
+  assert.match(groupMigration, /create policy groups_select_members[\s\S]+using \(public\.is_group_member\(id\)\)/i);
+  assert.match(groupMigration, /create policy group_challenges_insert_owner_challenge[\s\S]+public\.is_group_owner\(group_id\)/i);
+  assert.match(groupMigration, /create policy user_challenge_progress_insert_group_members[\s\S]+user_id = \(select auth\.uid\(\)\)[\s\S]+public\.is_group_member\(gc\.group_id\)/i);
+  assert.match(groupMigration, /create or replace function public\.list_group_members[\s\S]+if not public\.is_group_member\(p_group_id\)/i);
+  assert.match(groupMigration, /case when u\.id = \(select auth\.uid\(\)\) then u\.email::text else null end/i);
+  assert.match(groupMigration, /revoke all on public\.groups, public\.group_members, public\.group_challenges from public, anon/i);
+  assert.match(groupMigration, /grant update \(name, description\) on public\.groups to authenticated/i);
+  assert.doesNotMatch(groupMigration, /grant insert[^;]*public\.group_members/i);
 });
