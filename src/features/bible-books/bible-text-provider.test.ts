@@ -46,6 +46,17 @@ test("KJV dataset preserves all 31,102 numbered verses", () => {
   assert.equal(totalVerses, 31102);
 });
 
+test("KJV verses exclude Project Gutenberg section and end-of-book markers", () => {
+  for (const book of Object.values(dataset.books)) {
+    for (const verses of Object.values(book.chapters)) {
+      for (const verse of verses) {
+        assert.doesNotMatch(verse.text, /\*\*\*/);
+        assert.doesNotMatch(verse.text, /The New Testament of the King James Bible/);
+      }
+    }
+  }
+});
+
 test("KJV contains numbered verses for Genesis 1, Psalm 150, Matthew 1, and Revelation 22", () => {
   for (const [bookId, chapterNumber] of [
     ["genesis", 1],

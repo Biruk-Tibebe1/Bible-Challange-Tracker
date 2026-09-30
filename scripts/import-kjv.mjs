@@ -93,7 +93,9 @@ const expectedChapters = new Map([
 ]);
 
 const source = readFileSync(resolve(sourcePath), "utf8").replace(/^\uFEFF/, "");
-const lines = source.split(/\r?\n/).map((line) => line.trim());
+const lines = source.split(/\r?\n/).map((line) => line.trim()).filter((line) =>
+  !line.startsWith("***") && line !== "The New Testament of the King James Bible",
+);
 const genesisHeading = [...lines.keys()].filter((index) => lines[index] === "The First Book of Moses: Called Genesis")[1];
 if (genesisHeading === undefined) throw new Error("Could not locate the Genesis body after the table of contents.");
 
