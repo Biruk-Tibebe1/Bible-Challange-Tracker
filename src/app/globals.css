@@ -34,3 +34,51 @@ a {
 ::selection {
   background: #dce6d9;
 }
+
+.bible-reader-shell[data-font-size="small"] .bible-verse-list [data-verse-text] {
+  font-size: 1rem;
+  line-height: 1.75;
+}
+
+.bible-reader-shell[data-font-size="normal"] .bible-verse-list [data-verse-text] {
+  font-size: 1.125rem;
+  line-height: 1.8;
+}
+
+.bible-reader-shell[data-font-size="large"] .bible-verse-list [data-verse-text] {
+  font-size: 1.3rem;
+  line-height: 1.85;
+}
+
+.bible-reader-shell[data-font-size="extra-large"] .bible-verse-list [data-verse-text] {
+  font-size: 1.45rem;
+  line-height: 1.9;
+}
+
+.bible-reading-dark {
+  --paper: #151c17;
+  --ink: #f0f2ea;
+  --muted: #bdc7bd;
+  --line: #435147;
+  --forest: #a5c7ad;
+  --forest-deep: #d1e6d4;
+  --sage: #2c3c31;
+  color-scheme: dark;
+}
+
+.bible-reading-dark [data-reader-surface] {
+  background-color: #202a23;
+}
+
+.bible-reading-dark [data-reader-surface] input,
+.bible-reading-dark [data-reader-surface] select,
+.bible-reading-dark [data-reader-surface] textarea {
+  background-color: #18211b;
+  color: var(--ink);
+  border-color: var(--line);
+}
+
+.bible-reading-dark .bible-verse-list button:hover,
+.bible-reading-dark [data-reader-surface] button:hover {
+  background-color: #314238;
+}

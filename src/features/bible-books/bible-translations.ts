@@ -1,11 +1,16 @@
 import type { BibleLocation } from "./bible-data";
 
 export type BibleTranslationId = "amharic" | "niv" | "kjv";
+export type BibleTranslationSourceType = "local" | "api" | "unconfigured";
+export type BibleTranslationAvailability = "available" | "planned";
 
 export interface BibleTranslation {
   id: BibleTranslationId;
   name: string;
-  locale: string;
+  abbreviation: string;
+  language: string;
+  sourceType: BibleTranslationSourceType;
+  availabilityStatus: BibleTranslationAvailability;
   label: string;
 }
 
@@ -13,17 +18,23 @@ export interface BibleVerse {
   id: string;
   verseNumber: number;
   text: string;
+  reference?: string;
+}
+
+export interface BibleAttribution {
+  notice: string;
 }
 
 export interface BibleChapterText {
   location: BibleLocation;
   translation: BibleTranslationId;
   verses: readonly BibleVerse[];
+  attribution?: BibleAttribution;
 }
 
 export type BibleTextResult =
   | { status: "available"; chapter: BibleChapterText }
-  | { status: "unavailable"; reason: "translation-not-available" | "source-not-configured"; message: string }
+  | { status: "unavailable"; reason: "translation-not-available" | "source-not-configured" | "chapter-not-available" | "operation-not-supported"; message: string }
   | { status: "error"; message: string };
 
 export interface BibleTextProvider {
@@ -40,8 +51,8 @@ export function getTranslationUnavailableState(
   if (translation === "amharic") {
     return {
       status: "unavailable",
-      reason: "translation-not-available",
-      message: "The Amharic Bible translation is not yet available.",
+      reason: "source-not-configured",
+      message: "Amharic source is not configured yet.",
     };
   }
   if (translation === "niv") {
@@ -55,7 +66,39 @@ export function getTranslationUnavailableState(
 }
 
 export const BIBLE_TRANSLATIONS: readonly BibleTranslation[] = [
-  { id: "amharic", name: "Amharic Bible", locale: "am", label: "🇪🇹 Amharic Bible" },
-  { id: "niv", name: "New International Version", locale: "en", label: "🇺🇸 NIV — New International Version" },
-  { id: "kjv", name: "King James Version", locale: "en", label: "📜 KJV — King James Version" },
+  {
+    id: "kjv",
+    name: "King James Version",
+    abbreviation: "KJV",
+    language: "English",
+    sourceType: "local",
+    availabilityStatus: "available",
+    label: "📜 KJV — King James Version",
+  },
+  {
+    id: "amharic",
+    name: "Amharic Bible",
+    abbreviation: "AMH",
+    language: "Amharic",
+    sourceType: "api",
+    availabilityStatus: "planned",
+    label: "🇪🇹 Amharic Bible",
+  },
+  {
+    id: "niv",
+    name: "New International Version",
+    abbreviation: "NIV",
+    language: "English",
+    sourceType: "api",
+    availabilityStatus: "planned",
+    label: "🇺🇸 NIV — Authorized source needed",
+  },
 ];
+
+export function isBibleTranslationId(value: unknown): value is BibleTranslationId {
+  return typeof value === "string" && BIBLE_TRANSLATIONS.some((translation) => translation.id === value);
+}
+
+export function getBibleTranslation(id: BibleTranslationId): BibleTranslation {
+  return BIBLE_TRANSLATIONS.find((translation) => translation.id === id)!;
+}
