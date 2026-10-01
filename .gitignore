@@ -4,4 +4,41 @@
 /build/
 .env*
 !.env.example
+!.env.*.example
 *.tsbuildinfo
+
+# Private keys, certificates, and keystores
+*.pem
+*.key
+*.p12
+*.pfx
+*.jks
+*.keystore
+id_rsa
+id_dsa
+id_ecdsa
+id_ed25519
+id_ed25519_sk
+
+# Cloud and service-account credentials
+credentials.json
+service-account*.json
+firebase-adminsdk*.json
+.npmrc
+kubeconfig
+*.kubeconfig
+*.secret
+*.secrets
+
+# Local secret/config directories and state files
+/secrets/
+**/secrets/
+**/.secrets/
+.aws/
+.azure/
+.gcloud/
+.ssh/
+.kube/
+.terraform/
+*.tfstate
+*.tfstate.*
