@@ -2,17 +2,17 @@ import { BIBLE_BOOKS, findBibleChapter } from "./bible-data.ts";
 import type { BibleBook, BibleLocation } from "./bible-data.ts";
 import type { BibleSearchResponse, BibleSearchResult } from "./kjv-search.ts";
 import type { BibleTextResult, BibleTranslationId, BibleVerse } from "./bible-translations.ts";
-import { BIBLE_TRANSLATIONS, getTranslationUnavailableState } from "./bible-translations.ts";
+import { BIBLE_TRANSLATIONS } from "./bible-translations.ts";
 
 export type BibleVerseResult =
   | { status: "available"; translation: BibleTranslationId; location: BibleLocation; verse: BibleVerse }
   | { status: "unavailable"; reason: "translation-not-available" | "source-not-configured" | "chapter-not-available" | "operation-not-supported"; message: string }
-  | { status: "error"; message: string };
+  | { status: "error"; reason?: "rate-limited"; message: string };
 
 export type BibleProviderSearchResult =
-  | { status: "available"; translation: BibleTranslationId; query: string; total: number; results: BibleSearchResult[] }
+  | { status: "available"; translation: BibleTranslationId; query: string; total: number; results: BibleSearchResult[]; attribution?: { notice: string } }
   | { status: "unavailable"; reason: "translation-not-available" | "source-not-configured" | "chapter-not-available" | "operation-not-supported"; message: string }
-  | { status: "error"; message: string };
+  | { status: "error"; reason?: "rate-limited"; message: string };
 
 export interface BibleTranslationProvider {
   readonly translationId: BibleTranslationId;
@@ -24,39 +24,50 @@ export interface BibleTranslationProvider {
 
 export type BibleFetch = typeof fetch;
 
-export function createAmharicTranslationProvider(fetcher: BibleFetch = fetch): BibleTranslationProvider {
+function createExternalTranslationProvider(
+  translationId: Exclude<BibleTranslationId, "kjv">,
+  fetcher: BibleFetch,
+): BibleTranslationProvider {
   async function request<T>(path: string, signal?: AbortSignal): Promise<T | { status: "error"; message: string }> {
     try {
       const response = await fetcher(path, { signal });
       const payload = await response.json() as T;
       if (!response.ok && (!payload || typeof payload !== "object" || !("status" in payload))) {
-        return { status: "error", message: "Unable to load Scripture from the Amharic source." };
+        return { status: "error", message: `Unable to load Scripture from the ${translationId.toUpperCase()} source.` };
       }
       return payload;
     } catch (error) {
       if (error instanceof DOMException && error.name === "AbortError") throw error;
-      return { status: "error", message: "Unable to reach the Amharic source. Check your connection and try again." };
+      return { status: "error", message: `Unable to reach the ${translationId.toUpperCase()} source. Check your connection and try again.` };
     }
   }
 
   return {
-    translationId: "amharic",
+    translationId,
     async getBookList() {
       return BIBLE_BOOKS;
     },
     getChapter(location, signal) {
-      return request(`/api/bible/amharic/${encodeURIComponent(location.bookId)}/${location.chapterNumber}`, signal);
+      return request(`/api/bible/${translationId}/${encodeURIComponent(location.bookId)}/${location.chapterNumber}`, signal);
     },
     getVerse(location, verseNumber, signal) {
-      return request(`/api/bible/amharic/${encodeURIComponent(location.bookId)}/${location.chapterNumber}?verse=${verseNumber}`, signal);
+      return request(`/api/bible/${translationId}/${encodeURIComponent(location.bookId)}/${location.chapterNumber}?verse=${verseNumber}`, signal);
     },
     search(query, options = {}, signal) {
       const params = new URLSearchParams({ q: query });
       if (options.limit !== undefined) params.set("limit", String(options.limit));
       if (options.offset !== undefined) params.set("offset", String(options.offset));
-      return request(`/api/bible/amharic/search?${params.toString()}`, signal);
+      return request(`/api/bible/${translationId}/search?${params.toString()}`, signal);
     },
   };
+}
+
+export function createAmharicTranslationProvider(fetcher: BibleFetch = fetch): BibleTranslationProvider {
+  return createExternalTranslationProvider("amharic", fetcher);
+}
+
+export function createNIVTranslationProvider(fetcher: BibleFetch = fetch): BibleTranslationProvider {
+  return createExternalTranslationProvider("niv", fetcher);
 }
 
 export function createKJVTranslationProvider(fetcher: BibleFetch = fetch): BibleTranslationProvider {
@@ -113,29 +124,10 @@ export function createKJVTranslationProvider(fetcher: BibleFetch = fetch): Bible
   };
 }
 
-function createUnavailableProvider(translationId: Exclude<BibleTranslationId, "kjv">): BibleTranslationProvider {
-  const unavailable = getTranslationUnavailableState(translationId)!;
-  return {
-    translationId,
-    async getBookList() {
-      return BIBLE_BOOKS;
-    },
-    async getChapter() {
-      return unavailable;
-    },
-    async getVerse() {
-      return unavailable;
-    },
-    async search() {
-      return unavailable;
-    },
-  };
-}
-
 export const BIBLE_TRANSLATION_PROVIDERS: Readonly<Record<BibleTranslationId, BibleTranslationProvider>> = {
   kjv: createKJVTranslationProvider(),
   amharic: createAmharicTranslationProvider(),
-  niv: createUnavailableProvider("niv"),
+  niv: createNIVTranslationProvider(),
 };
 
 export function getBibleTranslationProvider(translationId: BibleTranslationId): BibleTranslationProvider {

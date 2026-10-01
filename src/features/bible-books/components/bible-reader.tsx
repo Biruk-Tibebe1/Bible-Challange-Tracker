@@ -173,7 +173,7 @@ export function BibleReader({
     if (!chapterResult.chapter.verses.some((verse) => verse.id === verseId)) return;
     setSelectedVerseId(verseId);
     requestAnimationFrame(() => document.getElementById(verseId)?.scrollIntoView({ behavior: "smooth", block: "center" }));
-  }, [chapterResult]);
+  }, [chapterResult, explicitBookId, explicitChapterNumber, initialVerseNumber]);
 
   function changeTestament(nextTestament: Testament) {
     setTestament(nextTestament);
@@ -325,7 +325,7 @@ export function BibleReader({
         <p className="mt-2 max-w-xl text-sm leading-6 text-[var(--muted)]">Choose a book, chapter, and available translation to read.</p>
       </header>
 
-      <div className="mt-5"><BibleSearchPanel /></div>
+      <div className="mt-5"><BibleSearchPanel key={translation} translation={translation} /></div>
 
       <details className="mb-5 rounded-md border border-[var(--line)] bg-white/55" data-reader-surface>
         <summary className="flex min-h-11 cursor-pointer items-center justify-between gap-3 px-4 text-sm font-medium text-[var(--ink)]">

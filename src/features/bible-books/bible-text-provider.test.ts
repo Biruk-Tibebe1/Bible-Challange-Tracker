@@ -2,12 +2,13 @@ import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import test from "node:test";
 import { BIBLE_BOOKS } from "./bible-data.ts";
-import { createAmharicSourceClient } from "./amharic-source.ts";
+import { createAmharicSourceClient, createNIVSourceClient, getNIVSourceConfig } from "./amharic-source.ts";
 import { BIBLE_TRANSLATIONS, getTranslationUnavailableState } from "./bible-translations.ts";
 import {
   BIBLE_TRANSLATION_PROVIDERS,
   createAmharicTranslationProvider,
   createKJVTranslationProvider,
+  createNIVTranslationProvider,
   getBibleTranslationProvider,
 } from "./bible-text-provider.ts";
 import type { KJVDataset } from "./kjv-search.ts";
@@ -83,7 +84,7 @@ test("missing Amharic and NIV sources return precise unavailable states", () => 
   assert.deepEqual(getTranslationUnavailableState("niv"), {
     status: "unavailable",
     reason: "source-not-configured",
-    message: "NIV source not configured.",
+    message: "NIV source is not configured yet.",
   });
   assert.equal(getTranslationUnavailableState("kjv"), null);
 });
@@ -225,6 +226,7 @@ test("Amharic source normalizes mocked chapter, verse, and search results with a
     assert.equal(search.translation, "amharic");
     assert.equal(search.results[0]?.reference, "Genesis 1:1");
     assert.equal(search.results[0]?.snippet, "mock external text");
+    assert.deepEqual(search.attribution, { notice: "Provider-supplied attribution notice" });
   }
   assert.deepEqual(calls.map((url) => url.searchParams.get("operation")), ["chapter", "verse", "search"]);
 });
@@ -269,9 +271,83 @@ test("Amharic source network and timeout failures return a recoverable error", a
   }
 });
 
-test("NIV remains an unavailable placeholder", async () => {
-  const provider = getBibleTranslationProvider("niv");
-  assert.equal((await provider.getChapter({ bookId: "genesis", chapterNumber: 1 })).status, "unavailable");
-  assert.equal((await provider.getVerse({ bookId: "genesis", chapterNumber: 1 }, 1)).status, "unavailable");
-  assert.equal((await provider.search("faith")).status, "unavailable");
+test("NIV provider lookup delegates requests through the local API boundary", async () => {
+  const calls: string[] = [];
+  const provider = createNIVTranslationProvider(async (input) => {
+    calls.push(String(input));
+    return Response.json({ status: "unavailable", reason: "source-not-configured", message: "NIV source is not configured yet." }, { status: 503 });
+  });
+
+  assert.equal(provider.translationId, "niv");
+  assert.deepEqual(await provider.getChapter({ bookId: "genesis", chapterNumber: 1 }), {
+    status: "unavailable",
+    reason: "source-not-configured",
+    message: "NIV source is not configured yet.",
+  });
+  await provider.getVerse({ bookId: "genesis", chapterNumber: 1 }, 1);
+  await provider.search("mock phrase");
+  assert.deepEqual(calls, [
+    "/api/bible/niv/genesis/1",
+    "/api/bible/niv/genesis/1?verse=1",
+    "/api/bible/niv/search?q=mock+phrase",
+  ]);
+});
+
+test("NIV source requires an endpoint, API key, and supplied attribution", async () => {
+  let requestCount = 0;
+  const client = createNIVSourceClient({
+    endpoint: "https://scripture.example/api",
+    attribution: "Provider-supplied attribution notice",
+  }, async () => {
+    requestCount += 1;
+    return Response.json({ verses: [{ verseNumber: 1, text: "mock external text" }] });
+  });
+
+  assert.equal((await client.getChapter({ bookId: "genesis", chapterNumber: 1 })).status, "unavailable");
+  assert.equal(requestCount, 0);
+});
+
+test("NIV server configuration maps the endpoint, key, and attribution environment variables", () => {
+  assert.deepEqual(getNIVSourceConfig({
+    NIV_BIBLE_API_URL: "https://scripture.example/api",
+    NIV_BIBLE_API_KEY: "placeholder-key",
+    NIV_BIBLE_ATTRIBUTION: "Provider-supplied notice",
+  }), {
+    endpoint: "https://scripture.example/api",
+    apiKey: "placeholder-key",
+    attribution: "Provider-supplied notice",
+  });
+});
+
+test("NIV source normalizes mocked data and provider attribution", async () => {
+  const client = createNIVSourceClient({
+    endpoint: "https://scripture.example/api",
+    apiKey: "test-niv-key",
+    attribution: "Provider-supplied NIV notice",
+  }, async (_input, init) => {
+    assert.equal(new Headers(init?.headers).get("authorization"), "Bearer test-niv-key");
+    return Response.json({ verses: [{ verseNumber: 1, text: "mock licensed source text" }] });
+  });
+
+  const result = await client.getChapter({ bookId: "genesis", chapterNumber: 1 });
+  assert.equal(result.status, "available");
+  if (result.status === "available") {
+    assert.equal(result.chapter.translation, "niv");
+    assert.equal(result.chapter.verses[0]?.reference, "Genesis 1:1");
+    assert.equal(result.chapter.attribution?.notice, "Provider-supplied NIV notice");
+  }
+});
+
+test("NIV rate limits return a distinct recoverable error", async () => {
+  const client = createNIVSourceClient({
+    endpoint: "https://scripture.example/api",
+    apiKey: "test-niv-key",
+    attribution: "Provider-supplied NIV notice",
+  }, async () => Response.json({ message: "rate limit" }, { status: 429 }));
+
+  assert.deepEqual(await client.getChapter({ bookId: "genesis", chapterNumber: 1 }), {
+    status: "error",
+    reason: "rate-limited",
+    message: "The configured NIV source is temporarily rate limited. Try again shortly.",
+  });
 });

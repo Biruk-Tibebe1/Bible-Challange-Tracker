@@ -1,4 +1,4 @@
-import { createAmharicSourceClient, getAmharicSourceConfig } from "@/features/bible-books/amharic-source";
+import { createNIVSourceClient, getNIVSourceConfig } from "@/features/bible-books/amharic-source";
 
 function resultStatus(result: { status: string; reason?: string }): number {
   if (result.status === "available") return 200;
@@ -10,7 +10,7 @@ function resultStatus(result: { status: string; reason?: string }): number {
 
 export async function GET(request: Request) {
   const url = new URL(request.url);
-  const client = createAmharicSourceClient(getAmharicSourceConfig());
+  const client = createNIVSourceClient(getNIVSourceConfig());
   const result = await client.search(url.searchParams.get("q") ?? "", {
     limit: Number(url.searchParams.get("limit") ?? 40),
     offset: Number(url.searchParams.get("offset") ?? 0),

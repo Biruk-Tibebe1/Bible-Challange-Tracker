@@ -1,5 +1,5 @@
 import { BIBLE_BOOKS, findBibleChapter } from "@/features/bible-books/bible-data";
-import { createAmharicSourceClient, getAmharicSourceConfig } from "@/features/bible-books/amharic-source";
+import { createAmharicSourceClient, createNIVSourceClient, getAmharicSourceConfig, getNIVSourceConfig } from "@/features/bible-books/amharic-source";
 import type { BibleChapterText } from "@/features/bible-books/bible-translations";
 import kjvDataset from "@/features/bible-books/data/kjv.json";
 
@@ -9,7 +9,11 @@ interface RouteContext {
 
 function resultStatus(result: { status: string; reason?: string }): number {
   if (result.status === "available") return 200;
-  if (result.status === "unavailable") return result.reason === "chapter-not-available" ? 404 : 503;
+  if (result.status === "unavailable") {
+    if (result.reason === "operation-not-supported") return 501;
+    return result.reason === "chapter-not-available" ? 404 : 503;
+  }
+  if (result.reason === "rate-limited") return 429;
   return 502;
 }
 
@@ -18,11 +22,13 @@ export async function GET(request: Request, { params }: RouteContext) {
   const chapterNumber = Number(rawChapterNumber);
   const book = BIBLE_BOOKS.find((item) => item.id === bookId);
 
-  if (translation === "amharic") {
+  if (translation === "amharic" || translation === "niv") {
     if (!book || !Number.isInteger(chapterNumber) || !findBibleChapter(bookId, chapterNumber)) {
-      return Response.json({ status: "unavailable", reason: "chapter-not-available", message: "This Amharic chapter is not available." }, { status: 404 });
+      return Response.json({ status: "unavailable", reason: "chapter-not-available", message: `This ${translation.toUpperCase()} chapter is not available.` }, { status: 404 });
     }
-    const client = createAmharicSourceClient(getAmharicSourceConfig());
+    const client = translation === "amharic"
+      ? createAmharicSourceClient(getAmharicSourceConfig())
+      : createNIVSourceClient(getNIVSourceConfig());
     const verseValue = new URL(request.url).searchParams.get("verse");
     if (verseValue !== null) {
       const verseNumber = Number(verseValue);

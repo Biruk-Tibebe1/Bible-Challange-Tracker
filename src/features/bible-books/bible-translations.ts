@@ -35,7 +35,7 @@ export interface BibleChapterText {
 export type BibleTextResult =
   | { status: "available"; chapter: BibleChapterText }
   | { status: "unavailable"; reason: "translation-not-available" | "source-not-configured" | "chapter-not-available" | "operation-not-supported"; message: string }
-  | { status: "error"; message: string };
+  | { status: "error"; reason?: "rate-limited"; message: string };
 
 export interface BibleTextProvider {
   getChapter(
@@ -59,7 +59,7 @@ export function getTranslationUnavailableState(
     return {
       status: "unavailable",
       reason: "source-not-configured",
-      message: "NIV source not configured.",
+      message: "NIV source is not configured yet.",
     };
   }
   return null;
@@ -91,7 +91,7 @@ export const BIBLE_TRANSLATIONS: readonly BibleTranslation[] = [
     language: "English",
     sourceType: "api",
     availabilityStatus: "planned",
-    label: "🇺🇸 NIV — Authorized source needed",
+    label: "🇺🇸 NIV",
   },
 ];
 
