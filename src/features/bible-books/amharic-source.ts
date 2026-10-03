@@ -8,10 +8,10 @@ export interface ExternalScriptureSourceConfig {
   endpoint?: string;
   apiKey?: string;
   attribution?: string;
+  licenseConfirmed?: boolean;
 }
 
 export type AmharicSourceConfig = ExternalScriptureSourceConfig;
-export type NIVSourceConfig = ExternalScriptureSourceConfig;
 type ExternalUnavailableReason = "source-not-configured" | "chapter-not-available" | "operation-not-supported";
 type ExternalSourceResult = BibleTextResult | BibleVerseResult | BibleProviderSearchResult;
 
@@ -46,15 +46,14 @@ function getExternalSourceConfig(prefix: "AMHARIC" | "NIV", env: Record<string, 
 }
 
 export function getAmharicSourceConfig(env: Record<string, string | undefined> = process.env): AmharicSourceConfig {
-  return getExternalSourceConfig("AMHARIC", env);
-}
-
-export function getNIVSourceConfig(env: Record<string, string | undefined> = process.env): NIVSourceConfig {
-  return getExternalSourceConfig("NIV", env);
+  return {
+    ...getExternalSourceConfig("AMHARIC", env),
+    licenseConfirmed: env.AMHARIC_BIBLE_LICENSE_CONFIRMED?.trim().toLowerCase() === "true",
+  };
 }
 
 export function createExternalScriptureSourceClient(
-  translationId: "amharic" | "niv",
+  translationId: "amharic",
   config: ExternalScriptureSourceConfig,
   fetcher: typeof fetch = fetch,
   timeoutMs = 10_000,
@@ -62,12 +61,12 @@ export function createExternalScriptureSourceClient(
   const endpoint = config.endpoint?.trim();
   const attribution = config.attribution?.trim();
   const apiKey = config.apiKey?.trim();
-  const sourceName = translationId === "niv" ? "NIV" : "Amharic";
-  const configured = Boolean(endpoint && attribution && (translationId !== "niv" || apiKey));
+  const sourceName = "Amharic";
+  const configured = Boolean(endpoint && attribution && (translationId !== "amharic" || config.licenseConfirmed));
   const chapterAttribution: BibleAttribution | undefined = attribution ? { notice: attribution } : undefined;
 
   async function request(
-    operation: "chapter" | "verse" | "search",
+    operation: "books" | "chapter" | "verse" | "search",
     parameters: Record<string, string>,
     signal?: AbortSignal,
   ): Promise<{ payload: unknown } | { result: ExternalSourceResult }> {
@@ -127,6 +126,46 @@ export function createExternalScriptureSourceClient(
     return findBibleChapter(location.bookId, location.chapterNumber) !== undefined;
   }
 
+  let catalogPromise: Promise<Set<string> | ExternalSourceResult> | null = null;
+
+  async function ensureCompleteCanon(signal?: AbortSignal): Promise<Set<string> | ExternalSourceResult> {
+    if (catalogPromise) return catalogPromise;
+    catalogPromise = (async () => {
+      const reply = await request("books", {}, signal);
+      if ("result" in reply) {
+        if (reply.result.status === "error"
+          || (reply.result.status === "unavailable" && reply.result.reason === "source-not-configured")) {
+          return reply.result;
+        }
+        return errorResult(`The configured ${sourceName} source must provide a complete 66-book catalog before Scripture can be enabled.`);
+      }
+      const payload = isRecord(reply.payload) ? reply.payload : null;
+      if (!payload || !Array.isArray(payload.books) || payload.books.length !== BIBLE_BOOKS.length) {
+        return errorResult(`The configured ${sourceName} source does not expose the complete 66-book canon.`);
+      }
+      const catalogued = new Set<string>();
+      for (const item of payload.books) {
+        if (!isRecord(item) || typeof item.bookId !== "string" || !isPositiveInteger(item.chapterCount)) {
+          return errorResult(`The configured ${sourceName} source returned an invalid book catalog.`);
+        }
+        const book = BIBLE_BOOKS.find((candidate) => candidate.id === item.bookId);
+        if (!book || book.chapterCount !== item.chapterCount || catalogued.has(book.id)) {
+          return errorResult(`The configured ${sourceName} source does not match the complete 66-book canon.`);
+        }
+        catalogued.add(book.id);
+      }
+      if (catalogued.size !== BIBLE_BOOKS.length) {
+        return errorResult(`The configured ${sourceName} source does not match the complete 66-book canon.`);
+      }
+      return catalogued;
+    })();
+    return catalogPromise;
+  }
+
+  function errorResult(message: string): ExternalSourceResult {
+    return { status: "error", message };
+  }
+
   function makeVerse(location: BibleLocation, verseNumber: number, text: string): BibleVerse {
     const bookName = BIBLE_BOOKS.find((book) => book.id === location.bookId)!.name;
     return {
@@ -140,6 +179,9 @@ export function createExternalScriptureSourceClient(
   return {
     async getChapter(location, signal) {
       if (!validLocation(location)) return unavailable("chapter-not-available", `This ${sourceName} chapter is not available.`) as BibleTextResult;
+      const catalog = await ensureCompleteCanon(signal);
+      if (!(catalog instanceof Set)) return catalog as BibleTextResult;
+      if (!catalog.has(location.bookId)) return unavailable("chapter-not-available", `This ${sourceName} chapter is not available.`) as BibleTextResult;
       const reply = await request("chapter", {
         bookId: location.bookId,
         chapterNumber: String(location.chapterNumber),
@@ -186,6 +228,9 @@ export function createExternalScriptureSourceClient(
       if (!validLocation(location) || !isPositiveInteger(verseNumber)) {
         return unavailable("chapter-not-available", `This ${sourceName} verse is not available.`) as BibleVerseResult;
       }
+      const catalog = await ensureCompleteCanon(signal);
+      if (!(catalog instanceof Set)) return catalog as BibleVerseResult;
+      if (!catalog.has(location.bookId)) return unavailable("chapter-not-available", `This ${sourceName} verse is not available.`) as BibleVerseResult;
       const reply = await request("verse", {
         bookId: location.bookId,
         chapterNumber: String(location.chapterNumber),
@@ -208,6 +253,8 @@ export function createExternalScriptureSourceClient(
     },
 
     async search(query, options = {}, signal) {
+      const catalog = await ensureCompleteCanon(signal);
+      if (!(catalog instanceof Set)) return catalog as BibleProviderSearchResult;
       const reply = await request("search", {
         q: query,
         limit: String(options.limit ?? 40),
@@ -262,12 +309,4 @@ export function createAmharicSourceClient(
   timeoutMs = 10_000,
 ): ExternalScriptureSourceClient {
   return createExternalScriptureSourceClient("amharic", config, fetcher, timeoutMs);
-}
-
-export function createNIVSourceClient(
-  config: NIVSourceConfig,
-  fetcher: typeof fetch = fetch,
-  timeoutMs = 10_000,
-): ExternalScriptureSourceClient {
-  return createExternalScriptureSourceClient("niv", config, fetcher, timeoutMs);
 }

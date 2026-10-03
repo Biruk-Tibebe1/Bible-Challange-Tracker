@@ -13,6 +13,7 @@ import type { BibleTextResult, BibleTranslationId, BibleVerse } from "../bible-t
 import { getBibleTranslationProvider } from "../bible-text-provider";
 import type { BibleLocation } from "../bible-data";
 import { BibleSearchPanel } from "./bible-search-panel";
+import { ApiBibleFairUseTracker } from "./api-bible-fair-use-tracker";
 import { formatBibleVerseReference } from "../reader-storage";
 import {
   addBibleBookmark,
@@ -50,7 +51,7 @@ export function BibleReader({
   const [testament, setTestament] = useState<Testament>(initialChapter?.testament ?? "Old Testament");
   const [bookId, setBookId] = useState(initialChapter?.bookId ?? "genesis");
   const [chapterNumber, setChapterNumber] = useState(initialChapter?.chapterNumber ?? 1);
-  const [translation, setTranslation] = useState<BibleTranslationId>("amharic");
+  const [translation, setTranslation] = useState<BibleTranslationId>(initialTranslation ?? "kjv");
   const [isLocalStateReady, setIsLocalStateReady] = useState(false);
   const [bookmarks, setBookmarks] = useState<BibleBookmark[]>([]);
   const [highlights, setHighlights] = useState<BibleHighlight[]>([]);
@@ -425,6 +426,7 @@ export function BibleReader({
           <p aria-live="polite" className="px-5 py-12 text-center text-sm text-[var(--muted)]">Loading chapter…</p>
         ) : chapterResult?.status === "available" ? (
           <>
+          {translation === "niv" && <ApiBibleFairUseTracker token={chapterResult.chapter.fumsToken} />}
           <ol aria-label={`${currentChapter.bookName} ${currentChapter.chapterNumber} verses`} className="bible-verse-list mx-auto max-w-3xl list-none space-y-3 px-3 py-5 font-serif text-lg leading-8 text-[var(--ink)] sm:px-8 sm:py-9 sm:text-xl sm:leading-9">
             {chapterResult.chapter.verses.map((verse) => {
               const identityKey = `${translation}:${bookId}:${chapterNumber}:${verse.verseNumber}`;

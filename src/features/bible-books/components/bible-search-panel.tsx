@@ -6,6 +6,7 @@ import { getBibleTranslationProvider } from "../bible-text-provider";
 import type { BibleProviderSearchResult } from "../bible-text-provider";
 import type { BibleSearchResult } from "../kjv-search";
 import type { BibleTranslationId } from "../bible-translations";
+import { ApiBibleFairUseTracker } from "./api-bible-fair-use-tracker";
 
 const PAGE_SIZE = 20;
 
@@ -66,6 +67,7 @@ export function BibleSearchPanel({ translation }: { translation: BibleTranslatio
         )}
         {response && response.total > 0 && (
           <>
+            {translation === "niv" && <ApiBibleFairUseTracker token={response.fumsToken} />}
             <p className="mt-4 text-xs text-[var(--muted)]" role="status">{response.total.toLocaleString()} matching verses · {translation.toUpperCase()}</p>
             <ol className="mt-2 divide-y divide-[var(--line)] rounded-md border border-[var(--line)] bg-white/70 px-3 sm:px-4">
               {response.results.map((result) => <SearchResult key={result.verseId} result={result} translation={translation} />)}

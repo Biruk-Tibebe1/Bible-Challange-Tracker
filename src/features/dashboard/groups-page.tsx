@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useEffect, useState, type FormEvent } from "react";
+import { useEffect, useRef, useState, type FormEvent } from "react";
 import { useAuth } from "@/features/authentication/auth-provider";
 import {
   createGroup,
@@ -26,22 +26,54 @@ export function GroupsPage() {
   const [isSaving, setIsSaving] = useState(false);
   const [error, setError] = useState("");
   const [notice, setNotice] = useState("");
+  const groupsRequestGeneration = useRef(0);
 
   async function refreshGroups() {
+    if (!userId || !isConfigured) return;
+    const requestGeneration = ++groupsRequestGeneration.current;
     setIsLoadingGroups(true);
     setError("");
     try {
-      setGroups(await listMyGroups());
+      const nextGroups = await listMyGroups();
+      if (requestGeneration === groupsRequestGeneration.current) setGroups(nextGroups);
     } catch (cause) {
-      setError(cause instanceof GroupRepositoryError ? cause.message : "Unable to load your groups.");
+      if (requestGeneration === groupsRequestGeneration.current) {
+        setGroups([]);
+        setError(cause instanceof GroupRepositoryError ? cause.message : "Unable to load your groups.");
+      }
     } finally {
-      setIsLoadingGroups(false);
+      if (requestGeneration === groupsRequestGeneration.current) setIsLoadingGroups(false);
     }
   }
 
   useEffect(() => {
-    if (isAuthLoading || !userId || !isConfigured) return;
-    void refreshGroups();
+    if (isAuthLoading) return;
+    if (!userId || !isConfigured) {
+      groupsRequestGeneration.current += 1;
+      setGroups([]);
+      setError("");
+      setIsLoadingGroups(false);
+      return;
+    }
+
+    const requestGeneration = ++groupsRequestGeneration.current;
+    setGroups([]);
+    setIsLoadingGroups(true);
+    setError("");
+    void listMyGroups().then((nextGroups) => {
+      if (requestGeneration === groupsRequestGeneration.current) setGroups(nextGroups);
+    }).catch((cause) => {
+      if (requestGeneration === groupsRequestGeneration.current) {
+        setGroups([]);
+        setError(cause instanceof GroupRepositoryError ? cause.message : "Unable to load your groups.");
+      }
+    }).finally(() => {
+      if (requestGeneration === groupsRequestGeneration.current) setIsLoadingGroups(false);
+    });
+
+    return () => {
+      groupsRequestGeneration.current += 1;
+    };
   }, [isAuthLoading, isConfigured, userId]);
 
   useEffect(() => {

@@ -10,7 +10,7 @@ export type BibleVerseResult =
   | { status: "error"; reason?: "rate-limited"; message: string };
 
 export type BibleProviderSearchResult =
-  | { status: "available"; translation: BibleTranslationId; query: string; total: number; results: BibleSearchResult[]; attribution?: { notice: string } }
+  | { status: "available"; translation: BibleTranslationId; query: string; total: number; results: BibleSearchResult[]; attribution?: { notice: string }; fumsToken?: string }
   | { status: "unavailable"; reason: "translation-not-available" | "source-not-configured" | "chapter-not-available" | "operation-not-supported"; message: string }
   | { status: "error"; reason?: "rate-limited"; message: string };
 

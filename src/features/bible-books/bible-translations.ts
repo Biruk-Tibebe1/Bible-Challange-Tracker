@@ -30,6 +30,7 @@ export interface BibleChapterText {
   translation: BibleTranslationId;
   verses: readonly BibleVerse[];
   attribution?: BibleAttribution;
+  fumsToken?: string;
 }
 
 export type BibleTextResult =

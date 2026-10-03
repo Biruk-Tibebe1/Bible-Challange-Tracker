@@ -4,6 +4,7 @@ import Link from "next/link";
 import { useState } from "react";
 import { useAuth } from "../auth-provider";
 import { useSavedChallenges } from "@/features/challenges/use-saved-challenges";
+import { ReminderSettings } from "@/components/reminder-settings";
 
 function ProfileValue({ label, value }: { label: string; value: string | number }) {
   return (
@@ -42,6 +43,8 @@ export function ProfileDashboard() {
         <p className="text-xs font-semibold uppercase tracking-[0.16em] text-[var(--forest)]">Your account</p>
         <h1 className="mt-2 font-serif text-4xl text-[var(--ink)] sm:text-5xl">Profile</h1>
       </header>
+
+      <ReminderSettings />
 
       {isAuthLoading ? (
         <section aria-live="polite" className="mt-7 rounded-md border border-[var(--line)] bg-white/50 p-6">

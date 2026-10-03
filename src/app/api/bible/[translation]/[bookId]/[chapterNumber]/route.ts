@@ -1,5 +1,6 @@
 import { BIBLE_BOOKS, findBibleChapter } from "@/features/bible-books/bible-data";
-import { createAmharicSourceClient, createNIVSourceClient, getAmharicSourceConfig, getNIVSourceConfig } from "@/features/bible-books/amharic-source";
+import { createAmharicSourceClient, getAmharicSourceConfig } from "@/features/bible-books/amharic-source";
+import { createNIVApiBibleSourceClient, getNIVSourceConfig } from "@/features/bible-books/niv-api-bible";
 import type { BibleChapterText } from "@/features/bible-books/bible-translations";
 import kjvDataset from "@/features/bible-books/data/kjv.json";
 
@@ -28,7 +29,7 @@ export async function GET(request: Request, { params }: RouteContext) {
     }
     const client = translation === "amharic"
       ? createAmharicSourceClient(getAmharicSourceConfig())
-      : createNIVSourceClient(getNIVSourceConfig());
+      : createNIVApiBibleSourceClient(getNIVSourceConfig());
     const verseValue = new URL(request.url).searchParams.get("verse");
     if (verseValue !== null) {
       const verseNumber = Number(verseValue);

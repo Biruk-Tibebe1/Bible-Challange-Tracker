@@ -36,7 +36,7 @@ function isLocation(value: unknown): value is BibleLocation {
 export function resolveReadingPosition(
   explicitLocation: BibleLocation | undefined,
   savedPosition: ReadingPosition | null,
-  fallback: ReadingPosition = { translation: "amharic", bookId: "genesis", chapterNumber: 1 },
+  fallback: ReadingPosition = { translation: "kjv", bookId: "genesis", chapterNumber: 1 },
   explicitTranslation?: BibleTranslationId,
 ): ReadingPosition {
   if (explicitLocation && isLocation(explicitLocation)) {

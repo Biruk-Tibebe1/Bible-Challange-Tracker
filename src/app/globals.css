@@ -16,11 +16,16 @@
 }
 
 html {
+  max-width: 100%;
+  overflow-x: clip;
   scroll-behavior: smooth;
 }
 
 body {
+  min-height: 100dvh;
   margin: 0;
+  padding-left: env(safe-area-inset-left);
+  padding-right: env(safe-area-inset-right);
   background: var(--paper);
   color: var(--ink);
   font-family: Georgia, "Times New Roman", serif;

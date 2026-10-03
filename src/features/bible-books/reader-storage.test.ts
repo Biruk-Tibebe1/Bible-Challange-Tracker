@@ -56,6 +56,14 @@ test("an explicit URL location overrides the saved book and chapter", () => {
   });
 });
 
+test("defaults to the local KJV when no saved or explicit translation is present", () => {
+  assert.deepEqual(resolveReadingPosition(undefined, null), {
+    translation: "kjv",
+    bookId: "genesis",
+    chapterNumber: 1,
+  });
+});
+
 test("an explicit URL translation overrides the saved translation", () => {
   const saved = { translation: "kjv", bookId: "john", chapterNumber: 3 } as const;
   assert.deepEqual(resolveReadingPosition(undefined, saved, undefined, "niv"), {
